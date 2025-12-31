@@ -1,0 +1,3 @@
+[submodule "phishing_detector"]
+	path = phishing_detector
+	url = https://github.com/sinisterdaddy/PhishingURL
