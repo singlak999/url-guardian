@@ -102,5 +102,6 @@ url-guardian/
 
 ## Credits
 
-- ML model based on [PhishingURL](https://github.com/sinisterdaddy/PhishingURL)
+- The machine learning model and feature extraction logic in the `phishing_detector` directory are based on the work of Radha Krishna.
+- The project structure and some parts of the ML integration are based on [PhishingURL](https://github.com/sinisterdaddy/PhishingURL).
 - Proxy powered by [mitmproxy](https://mitmproxy.org/)
