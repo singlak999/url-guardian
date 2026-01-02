@@ -13,6 +13,7 @@ from typing import Tuple, Optional
 
 import numpy as np
 import pandas as pd
+import joblib
 from sklearn.ensemble import GradientBoostingClassifier
 
 # Add phishing_detector to path
@@ -44,18 +45,25 @@ class PhishingChecker:
     def __init__(self):
         self.model = None
         self.feature_extractor = None
+        self.use_xgb = False
         self._load_model()
         self._url_cache = {}  # Cache for checked URLs
 
     def _load_model(self):
         """Load or train the ML model"""
-        model_path = os.path.join(os.path.dirname(__file__), 'models', 'phishing_model.pkl')
+        # Prefer the optimized model in models folder
+        optimized_model_path = os.path.join(os.path.dirname(__file__), 'models', 'phishing_model_optimized.pkl')
+        legacy_model_path = os.path.join(os.path.dirname(__file__), 'models', 'phishing_model.pkl')
 
-        if os.path.exists(model_path):
-            with open(model_path, 'rb') as f:
+        if os.path.exists(optimized_model_path):
+            self.model = joblib.load(optimized_model_path)
+            self.use_xgb = True
+        elif os.path.exists(legacy_model_path):
+            with open(legacy_model_path, 'rb') as f:
                 self.model = pickle.load(f)
+            self.use_xgb = False
         else:
-            self._train_model(model_path)
+            self._train_model(legacy_model_path)
 
     def _train_model(self, save_path: str):
         """Train the model from CSV data"""
@@ -161,13 +169,22 @@ class PhishingChecker:
                 prediction = self.model.predict(features)[0]
                 probabilities = self.model.predict_proba(features)[0]
 
-                # -1 = phishing, 1 = safe
-                if prediction == -1:
-                    confidence = probabilities[0]  # Probability of phishing
-                    result = (True, confidence, "ML model detected phishing indicators")
+                if self.use_xgb:
+                    # XGBoost model uses 0/1 labels: 0 = phishing, 1 = safe
+                    if prediction == 0:
+                        confidence = probabilities[0]  # Probability of phishing
+                        result = (True, confidence, "ML model detected phishing indicators")
+                    else:
+                        confidence = probabilities[1]  # Probability of safe
+                        result = (False, confidence, "ML model: appears safe")
                 else:
-                    confidence = probabilities[1]  # Probability of safe
-                    result = (False, confidence, "ML model: appears safe")
+                    # Legacy model uses -1/1 labels: -1 = phishing, 1 = safe
+                    if prediction == -1:
+                        confidence = probabilities[0]  # Probability of phishing
+                        result = (True, confidence, "ML model detected phishing indicators")
+                    else:
+                        confidence = probabilities[1]  # Probability of safe
+                        result = (False, confidence, "ML model: appears safe")
 
                 self._url_cache[cache_key] = result
                 return result
